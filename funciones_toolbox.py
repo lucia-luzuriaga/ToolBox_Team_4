@@ -506,7 +506,10 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
         return None
     
     # Seleccion de variables categóricas:
+
     selected_cat = get_features_cat_regression(df,target_col,umbral_categoria, umbral_continua, pvalue)
+    
+
     
     # Seleccion de variables numéricas:
     tipos = tipifica_variables(df,umbral_categoria, umbral_continua)
@@ -518,23 +521,23 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
         selected_num.remove(target_col)
  
 
-    # CASO A: Existen columnas categoricas:
+    # CASO A: Existen colmnas categoricas:
     col_validas = []
-    no_col = []
-    if columns != []:
-        for col in columns:
-            if type(col) != str:
-                print('ERROR #7: La columna introducida no es tipo string')
+    no_col = [] 
+    X_validasA = []
+    if type(columns) == int:
+        print('ERROR #7: La columna introducida no es tipo string')  
+        return None  
+    if columns != []:            
+        for col in columns:               
             if col in df.columns:
                 col_validas.append(col)
             else: # 4
                 no_col.append(col)
                 print(f'ERROR #4: Las columnas: {no_col}, no se encuentra en tu DataFrame.')
                 return None
-        print(f'columnas validas que se encuentran en el Dataframe: {col_validas}') 
-        # Seleccion de features:
+        print(f'columnas validas que se encuentran en el Dataframe: {col_validas}')
 
-        X_validasA = []
         for col in col_validas:
             if df[col].nunique() < 2:
                 print('No consideramos como categorica.')
@@ -561,25 +564,7 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
                 if pvalue_anova < pvalue:
                     X_validasA.append(col)
         print(f'Nuestras features válidas son: {X_validasA}')
-        
-          
-        # PLOTS PARA VARIABLES CATEGÓRICAS
-        if with_individual_plot is True:
-            for col in X_validasA:
-                print(f'Relacion de {target_col} con {col}:\n')
-                sns.pairplot(df[X_validasA + [target_col]], diag_kind="hist")  
-                plt.xlabel(col)
-                plt.ylabel(target_col)
-                plt.show()
-        else:
-            print(f'Relacion de {target_col} con {X_validasA}:\n')
-            sns.pairplot(df[X_validasA + [target_col]], diag_kind="hist")
-            plt.xlabel(X_validasA)
-            plt.ylabel(target_col)
-            plt.show()
 
-        return X_validasA
-    
     elif selected_cat != []:
         for col in selected_cat:
             if col in df.columns:
@@ -637,6 +622,9 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
             plt.show()
 
         return X_validasA
+
+
+
 
     # CASO B: No existen columnas categoricas validas.
     else:
