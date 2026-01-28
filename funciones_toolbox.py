@@ -75,7 +75,7 @@ def tipifica_variables(df, umbral_categoria=None, umbral_continua=None):
     #validar que df es df
     if not isinstance(df, pd.DataFrame):
         raise TypeError("El argumento 'df' debe ser un DF")
-
+        return None
     #vlidar umbral_categoria (si se proporciona)
     if umbral_categoria is not None:
         #intentar convertir a int (captura letras, floats raros, etc)
@@ -83,8 +83,10 @@ def tipifica_variables(df, umbral_categoria=None, umbral_continua=None):
             umbral_categoria = int(umbral_categoria) #mas que nada por si el usuario pone "10", la intencion es buena y lo transforma.
         except (ValueError, TypeError):                #se podría quitar
             raise ValueError("'umbral_categoria' debe ser un entero válido.")
+            return None
         if umbral_categoria <= 0:
             raise ValueError("'umbral_categoria' debe ser mayor que 0.")
+            return None
 
     #validar umbral_continua (si se proporciona)
     if umbral_continua is not None:
@@ -93,8 +95,10 @@ def tipifica_variables(df, umbral_categoria=None, umbral_continua=None):
             umbral_continua = float(umbral_continua)
         except (ValueError, TypeError):
             raise ValueError("'umbral_continua' debe ser un número (float) válido")
+            return None
         if umbral_continua <= 0:
             raise ValueError("'umbral_continua' debe ser mayor que 0")
+            return None
 
 
     #Obtenemos la descripción del DataFrame
@@ -518,13 +522,9 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
     
     # Seleccion de variables categóricas:
 
-    selected_cat = get_features_cat_regression(df,target_col,umbral_categoria, umbral_continua, pvalue)
-    
-
     
     # Seleccion de variables numéricas:
     tipos = tipifica_variables(df,umbral_categoria, umbral_continua)
-    
     
     selected_num = tipos.loc[(tipos['tipo_sugerido'] != "Categórica") & (tipos['tipo_sugerido'] != "Binaria"),"nombre_variable"].to_list() 
 
@@ -532,7 +532,7 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
         selected_num.remove(target_col)
  
 
-    # CASO A: Existen colmnas categoricas:
+    # CASO A: Existen columnas categoricas:
     col_validas = []
     no_col = [] 
     X_validasA = []
@@ -576,48 +576,6 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
                     X_validasA.append(col)
         print(f'Nuestras features válidas son: {X_validasA}')
 
-    elif selected_cat != []:
-        for col in selected_cat:
-            if col in df.columns:
-                col_validas.append(col)
-            else: # 4
-                no_col.append(col)
-                print(f'ERROR #4: Las columnas: {no_col}, no se encuentra en tu DataFrame.')
-                return None
-        print(f'columnas validas que se encuentran en el Dataframe: {col_validas}')
-
-        # Seleccion de features:
-
-        X_validasA = []
-        for col in col_validas:
-            if df[col].nunique() < 2:
-                print('No consideramos como categorica.')
-                continue
-            elif df[col].nunique() == 2:
-                    catego = df[col].dropna().unique() 
-                    grupo_1 = df[df[col] == catego[0]][target_col].dropna()
-                    grupo_2 = df[df[col] == catego[1]][target_col].dropna()
-                    stat_ttest,pvalue_ttest = ttest_ind(grupo_1,grupo_2)
-                    print(f'Para la columna {col}, su rtdo es: Stat: {stat_ttest}p-value: {pvalue_ttest} con un IC del {1-pvalue}\n')
-                    if pvalue_ttest < pvalue:
-                        X_validasA.append(col)
-                
-            else:
-                grupos = []
-
-                categorias = df[col].dropna().unique()
-                for categoria in categorias:
-                    grupo = df[df[col] == categoria][target_col].dropna()
-                    grupos.append(grupo)
-
-                stat_anova,pvalue_anova = f_oneway(*grupos) # El * es para desempaquetar la lista formadas por mas listas.
-                print(f'Para la columna {col}, su rtdo es: Stat: {stat_anova}p-value: {pvalue_anova} con un IC del {1-pvalue}\n')
-                if pvalue_anova < pvalue:
-                    X_validasA.append(col)
-        print(f'Nuestras features válidas son: {X_validasA}')
-        
-          
-        # PLOTS PARA VARIABLES CATEGÓRICAS
         if with_individual_plot is True:
             for col in X_validasA:
                 print(f'Relacion de {target_col} con {col}:\n')
@@ -634,42 +592,102 @@ def plot_features_cat_regression(df,columns=[],umbral_categoria=10, umbral_conti
 
         return X_validasA
 
+    else:
+        selected_cat = get_features_cat_regression(df,target_col,umbral_categoria, umbral_continua, pvalue)
+        if selected_cat != []:
+            for col in selected_cat:
+                if col in df.columns:
+                    col_validas.append(col)
+                else: # 4
+                    no_col.append(col)
+                    print(f'ERROR #4: Las columnas: {no_col}, no se encuentra en tu DataFrame.')
+                    return None
+            print(f'columnas validas que se encuentran en el Dataframe: {col_validas}')
+
+        # Seleccion de features:
+
+            X_validasA = []
+            for col in col_validas:
+                if df[col].nunique() < 2:
+                    print('No consideramos como categorica.')
+                    continue
+                elif df[col].nunique() == 2:
+                        catego = df[col].dropna().unique() 
+                        grupo_1 = df[df[col] == catego[0]][target_col].dropna()
+                        grupo_2 = df[df[col] == catego[1]][target_col].dropna()
+                        stat_ttest,pvalue_ttest = ttest_ind(grupo_1,grupo_2)
+                        print(f'Para la columna {col}, su rtdo es: Stat: {stat_ttest}p-value: {pvalue_ttest} con un IC del {1-pvalue}\n')
+                        if pvalue_ttest < pvalue:
+                            X_validasA.append(col)
+                
+                else:
+                    grupos = []
+
+                    categorias = df[col].dropna().unique()
+                    for categoria in categorias:
+                        grupo = df[df[col] == categoria][target_col].dropna()
+                        grupos.append(grupo)
+
+                    stat_anova,pvalue_anova = f_oneway(*grupos) # El * es para desempaquetar la lista formadas por mas listas.
+                    print(f'Para la columna {col}, su rtdo es: Stat: {stat_anova}p-value: {pvalue_anova} con un IC del {1-pvalue}\n')
+                    if pvalue_anova < pvalue:
+                        X_validasA.append(col)
+            print(f'Nuestras features válidas son: {X_validasA}')
+            
+            
+            # PLOTS PARA VARIABLES CATEGÓRICAS
+            if with_individual_plot is True:
+                for col in X_validasA:
+                    print(f'Relacion de {target_col} con {col}:\n')
+                    sns.pairplot(df[X_validasA + [target_col]], diag_kind="hist")  
+                    plt.xlabel(col)
+                    plt.ylabel(target_col)
+                    plt.show()
+            else:
+                print(f'Relacion de {target_col} con {X_validasA}:\n')
+                sns.pairplot(df[X_validasA + [target_col]], diag_kind="hist")
+                plt.xlabel(X_validasA)
+                plt.ylabel(target_col)
+                plt.show()
+
+            return X_validasA
+
 
 
 
     # CASO B: No existen columnas categoricas validas.
-    else:
-        columns_val = []
-        for col in selected_num:
-            if is_numeric_dtype(df[col]) and not is_bool_dtype(df[col]) and not is_datetime64_any_dtype(df[col]): # 8
-                columns_val.append(col)
-                continue
-            else:
-                continue
-        print(f'Como al llamar la funcion no has introducido una lista de columns, se ha añadido las variables numericas que son: {columns_val}')
-        # Seleccion de features:    
-
-        X_validasB = []
-
-        for col in columns_val:
-            corr, pvalue_col = pearsonr(df[target_col], df[col])
-            print(f'Para la columna {col}, tiene una correlacion del {corr} y un p-value del {pvalue_col} en un IC del {1-pvalue}')
-            if pvalue_col < pvalue:
-                X_validasB.append(col)
-
-        print(f'Las features elegidas son: {X_validasB}')
-
-        # PLOTS PARA VARIABLES NUMÉRICAS
-        if with_individual_plot is True:
-            for col in X_validasB:
-                print(f'Relacion de {target_col} con {col}:\n')
-                sns.pairplot(df[X_validasB + [target_col]], diag_kind="hist")                
-                plt.xlabel(col)
-                plt.ylabel(target_col)
-                plt.show()
         else:
-            print(f'Relacion de {target_col} con {X_validasB}:\n')
-            sns.pairplot(df[X_validasB + [target_col]], diag_kind="hist")
-            plt.show()
-                
-        return X_validasB
+            columns_val = []
+            for col in selected_num:
+                if is_numeric_dtype(df[col]) and not is_bool_dtype(df[col]) and not is_datetime64_any_dtype(df[col]): # 8
+                    columns_val.append(col)
+                    continue
+                else:
+                    continue
+            print(f'Como al llamar la funcion no has introducido una lista de columns, se ha añadido las variables numericas que son: {columns_val}')
+            # Seleccion de features:    
+
+            X_validasB = []
+
+            for col in columns_val:
+                corr, pvalue_col = pearsonr(df[target_col], df[col])
+                print(f'Para la columna {col}, tiene una correlacion del {corr} y un p-value del {pvalue_col} en un IC del {1-pvalue}')
+                if pvalue_col < pvalue:
+                    X_validasB.append(col)
+
+            print(f'Las features elegidas son: {X_validasB}')
+
+            # PLOTS PARA VARIABLES NUMÉRICAS
+            if with_individual_plot is True:
+                for col in X_validasB:
+                    print(f'Relacion de {target_col} con {col}:\n')
+                    sns.pairplot(df[X_validasB + [target_col]], diag_kind="hist")                
+                    plt.xlabel(col)
+                    plt.ylabel(target_col)
+                    plt.show()
+            else:
+                print(f'Relacion de {target_col} con {X_validasB}:\n')
+                sns.pairplot(df[X_validasB + [target_col]], diag_kind="hist")
+                plt.show()
+                    
+            return X_validasB
